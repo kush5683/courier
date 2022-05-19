@@ -20,17 +20,51 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 //Gets the content encoding type of the email to be decoded later
 fn get_content_encoding(text: &str) -> &str {
+    // println!("{}", text);
     let re = regex::Regex::new(r"Content-Transfer-Encoding: (.*)").unwrap();
-    let caps = re.find(text).expect("No match found");
-    return caps.as_str().split(':').collect::<Vec<&str>>()[1].trim();
+    let caps = re.find(text);
+    if !caps.is_none(){
+        return caps.unwrap().as_str().split(':').collect::<Vec<&str>>()[1].trim();
+    }
+    return "custom";
     
+}
+
+fn get_html_section(text: &str, quoted_printable: bool) -> Result<String, Box<dyn Error>>{
+    let re = regex::Regex::new(r"Content-Type: text/html[\s\S]*").unwrap();
+    let caps = re.find(text).expect("No html section found");
+    let mut html_text = String::from("");
+    if quoted_printable{
+        html_text = caps.as_str().split("\n").collect::<Vec<&str>>()[3..].join("\n");
+    }else{
+        html_text = caps.as_str().split("\n").collect::<Vec<&str>>()[1..].join("\n");
+    }
+    
+    // println!("html section\n{}", html_text);
+    Ok(html_text.to_string())
+
 }
 
 //decodes quoted printable content encoding to plain text HTML
 fn get_quoted_printable_text(text: &str) -> Result<String, Box<dyn Error>> {
-    let decoded = String::from_utf8(decode(text.as_bytes(), ParseMode::Robust).unwrap()).expect("Could not decode quoted printable");
+    let html = String::from(get_html_section(text,true)?);
+    let decoded = String::from_utf8(decode(html.as_bytes(), ParseMode::Robust).unwrap()).expect("Could not decode quoted printable");
+    let mut content = String::from("<html>");
+    content.push_str(&decoded);
+    content.push_str("</html>");
     let re = regex::Regex::new(r"<html[\s\S]*</html>").unwrap();
-    let caps = re.find(&decoded).expect("No match found for html tags");
+    let caps = re.find(&content).expect("No match found for html tags");
+    Ok(caps.as_str().to_string())
+}
+
+fn get_custom_text(text: &str) -> Result<String, Box<dyn Error>> {
+    let html = String::from(get_html_section(text,false)?);
+    // println!("{}", html);
+    let mut content = String::from("<html>");
+    content.push_str(&html);
+    content.push_str("</html>");
+    let re = regex::Regex::new(r"<html[\s\S]*</html>").unwrap();
+    let caps = re.find(&content).expect("No match found for html tags");
     Ok(caps.as_str().to_string())
 }
 
@@ -74,6 +108,8 @@ fn fetch_inbox_top(user: String, pass: String) -> imap::error::Result<Option<Str
     
     if encoding == "quoted-printable" {
         text = get_quoted_printable_text(&text).expect("Could not decode quoted printable");
-    } 
+    } else if encoding == "custom"{
+        text = get_custom_text(&text).expect("Could not get html section");
+    }
     Ok(Some(text))
 }
