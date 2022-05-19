@@ -3,7 +3,7 @@ extern crate native_tls;
 extern crate regex;
 extern crate quoted_printable;
 
-use std::{error::Error, env::VarError};
+use std::{error::Error};
 use dotenv::dotenv;
 use quoted_printable::{decode, ParseMode};
 fn main() -> Result<(), Box<dyn Error>> {
@@ -55,7 +55,7 @@ fn fetch_inbox_top(user: String, pass: String) -> imap::error::Result<Option<Str
 
     // fetch message number 1 in this mailbox, along with its RFC822 field.
     // RFC 822 dictates the format of the body of e-mails
-    let messages = imap_session.fetch((mailbox.exists-3).to_string(), "(RFC822.HEADER RFC822.TEXT)")?; 
+    let messages = imap_session.fetch((mailbox.exists).to_string(), "(RFC822.HEADER RFC822.TEXT)")?; 
     let message = if let Some(m) = messages.iter().next() {
         m
     } else {
