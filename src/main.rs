@@ -6,13 +6,13 @@ extern crate quoted_printable;
 use std::{error::Error, env::VarError};
 use dotenv::dotenv;
 use quoted_printable::{decode, ParseMode};
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
-    let user = std::env::var("USER").expect("USER not found");
-    let password = std::env::var("PASS").expect("PASSWORD not found");
+    let user = std::env::var("USER")?;
+    let password = std::env::var("PASS")?;
     let msg_text = fetch_inbox_top(user, password).expect("Something went wrong").unwrap();
     println!("{}", msg_text);
-    
+    Ok(())
 }
 
 fn get_content_encoding(text: &str) -> &str {
@@ -23,7 +23,7 @@ fn get_content_encoding(text: &str) -> &str {
     
 }
 
-fn get_quoted_printable_text(text: &str) -> Result<String, & 'static dyn Error> {
+fn get_quoted_printable_text(text: &str) -> Result<String, Box<dyn Error>> {
     let decoded = String::from_utf8(decode(text.as_bytes(), ParseMode::Robust).unwrap()).expect("Could not decode quoted printable");
     // println!("{}", decoded);
     let re = regex::Regex::new(r"<html[\s\S]*</html>").unwrap();
