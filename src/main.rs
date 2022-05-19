@@ -37,7 +37,7 @@ fn fetch_inbox_top() -> imap::error::Result<Option<String>> {
     // the client we have here is unauthenticated.
     // to do anything useful with the e-mails, we need to log in
     let mut imap_session = client
-        .login("kshah2@wpi.edu", "Bonjour2022!!")
+        .login("EMAIL", "PASSWORD")
         .map_err(|e| e.0)?;
 
     // we want to fetch the first email in the INBOX mailbox
