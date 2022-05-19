@@ -2,7 +2,6 @@ extern crate imap;
 extern crate native_tls;
 extern crate regex;
 extern crate quoted_printable;
-
 use std::{error::Error};
 use dotenv::dotenv;
 use quoted_printable::{decode, ParseMode};
@@ -13,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let user = std::env::var("USER")?;
     let password = std::env::var("PASS")?;
     //get latest email
-    let msg_text = fetch_inbox_top(user, password).expect("Something went wrong").unwrap();
+    let msg_text = fetch_inbox_top(user, password,5).expect("Something went wrong").unwrap();
     println!("{}", msg_text);
     Ok(())
 }
@@ -33,7 +32,7 @@ fn get_content_encoding(text: &str) -> &str {
 fn get_html_section(text: &str, quoted_printable: bool) -> Result<String, Box<dyn Error>>{
     let re = regex::Regex::new(r"Content-Type: text/html[\s\S]*").unwrap();
     let caps = re.find(text).expect("No html section found");
-    let mut html_text = String::from("");
+    let mut html_text;
     if quoted_printable{
         html_text = caps.as_str().split("\n").collect::<Vec<&str>>()[3..].join("\n");
     }else{
@@ -42,7 +41,15 @@ fn get_html_section(text: &str, quoted_printable: bool) -> Result<String, Box<dy
     
     // println!("html section\n{}", html_text);
     Ok(html_text.to_string())
+}
 
+fn get_base64_section(text: &str) -> Result<String, Box<dyn Error>>{
+    let re = regex::Regex::new(r"\n\n[\s\S]*=\n").unwrap();
+    let caps = re.find(text).expect("No base64 section found");
+    let mut base64_text = String::from("");
+    base64_text = caps.as_str().split("\n").collect::<Vec<&str>>()[1..].join("\n");
+    // println!("base64 section\n{}", base64_text);
+    Ok(base64_text.to_string())
 }
 
 //decodes quoted printable content encoding to plain text HTML
@@ -57,6 +64,7 @@ fn get_quoted_printable_text(text: &str) -> Result<String, Box<dyn Error>> {
     Ok(caps.as_str().to_string())
 }
 
+//gets the plain text section of the email and wraps it in html tags
 fn get_custom_text(text: &str) -> Result<String, Box<dyn Error>> {
     let html = String::from(get_html_section(text,false)?);
     // println!("{}", html);
@@ -68,8 +76,14 @@ fn get_custom_text(text: &str) -> Result<String, Box<dyn Error>> {
     Ok(caps.as_str().to_string())
 }
 
+//finds the base64 encoded image for placement in the html
+fn get_base64_text(text: &str) -> Result<String, Box<dyn Error>> {
+    let base64 = get_base64_section(text)?;
+    Ok(base64.trim().to_string())
+}
+
 //gets the email text of the latest message in the main inbox of the given user
-fn fetch_inbox_top(user: String, pass: String) -> imap::error::Result<Option<String>> {
+fn fetch_inbox_top(user: String, pass: String, offset: u32) -> imap::error::Result<Option<String>> {
     //imap server domain
     let domain = "outlook.office365.com";
     let tls = native_tls::TlsConnector::builder().build().unwrap();
@@ -89,7 +103,7 @@ fn fetch_inbox_top(user: String, pass: String) -> imap::error::Result<Option<Str
 
     // fetch message number 1 in this mailbox, along with its RFC822 field.
     // RFC 822 dictates the format of the body of e-mails
-    let messages = imap_session.fetch((mailbox.exists).to_string(), "(RFC822.HEADER RFC822.TEXT)")?; 
+    let messages = imap_session.fetch((mailbox.exists-offset).to_string(), "(RFC822.HEADER RFC822.TEXT)")?; 
     let message = if let Some(m) = messages.iter().next() {
         m
     } else {
