@@ -22,17 +22,18 @@ fn get_content_encoding(text: &str) -> &str {
     // println!("{}", text);
     let re = regex::Regex::new(r"Content-Transfer-Encoding: (.*)").unwrap();
     let caps = re.find(text);
-    if !caps.is_none(){
+    if caps.is_some(){
         return caps.unwrap().as_str().split(':').collect::<Vec<&str>>()[1].trim();
     }
     return "custom";
     
 }
 
+//Gets the body of the email that is of type text/html
 fn get_html_section(text: &str, quoted_printable: bool) -> Result<String, Box<dyn Error>>{
     let re = regex::Regex::new(r"Content-Type: text/html[\s\S]*").unwrap();
     let caps = re.find(text).expect("No html section found");
-    let mut html_text;
+    let html_text;
     if quoted_printable{
         html_text = caps.as_str().split("\n").collect::<Vec<&str>>()[3..].join("\n");
     }else{
@@ -43,10 +44,11 @@ fn get_html_section(text: &str, quoted_printable: bool) -> Result<String, Box<dy
     Ok(html_text.to_string())
 }
 
+//Gets the body of the email that is of type text/base64
 fn get_base64_section(text: &str) -> Result<String, Box<dyn Error>>{
     let re = regex::Regex::new(r"\n\n[\s\S]*=\n").unwrap();
     let caps = re.find(text).expect("No base64 section found");
-    let mut base64_text = String::from("");
+    let base64_text;
     base64_text = caps.as_str().split("\n").collect::<Vec<&str>>()[1..].join("\n");
     // println!("base64 section\n{}", base64_text);
     Ok(base64_text.to_string())
@@ -66,7 +68,7 @@ fn get_quoted_printable_text(text: &str) -> Result<String, Box<dyn Error>> {
 
 //gets the plain text section of the email and wraps it in html tags
 fn get_custom_text(text: &str) -> Result<String, Box<dyn Error>> {
-    let html = String::from(get_html_section(text,false)?);
+    let html = get_html_section(text,false)?;
     // println!("{}", html);
     let mut content = String::from("<html>");
     content.push_str(&html);
@@ -124,6 +126,8 @@ fn fetch_inbox_top(user: String, pass: String, offset: u32) -> imap::error::Resu
         text = get_quoted_printable_text(&text).expect("Could not decode quoted printable");
     } else if encoding == "custom"{
         text = get_custom_text(&text).expect("Could not get html section");
+    } else if encoding == "base64"{
+        text = get_base64_text(&text).expect("Could not get base64 section");
     }
     Ok(Some(text))
 }
