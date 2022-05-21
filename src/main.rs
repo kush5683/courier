@@ -7,13 +7,15 @@ use dotenv::dotenv;
 use quoted_printable::{decode, ParseMode};
 
 fn main() -> Result<(), Box<dyn Error>> {
+    //a temporary variable to use while testing; gets the message n before the most recent;
+    let inbox_offset: u32 = 9;
     //load the .env file to read in credentials
     dotenv().ok();
     //get the credentials from the .env file
     let user = std::env::var("USERNAME")?;
     let password = std::env::var("PASS")?;
     //get latest email
-    let msg_text = fetch_inbox_top(user, password,6).expect("Something went wrong").unwrap();
+    let msg_text = fetch_inbox_top(user, password,inbox_offset).expect("Something went wrong").unwrap();
     println!("{}", msg_text);
     Ok(())
 }
