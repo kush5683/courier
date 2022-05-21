@@ -5,14 +5,15 @@ extern crate quoted_printable;
 use std::{error::Error};
 use dotenv::dotenv;
 use quoted_printable::{decode, ParseMode};
+
 fn main() -> Result<(), Box<dyn Error>> {
     //load the .env file to read in credentials
     dotenv().ok();
     //get the credentials from the .env file
-    let user = std::env::var("USER")?;
+    let user = std::env::var("USERNAME")?;
     let password = std::env::var("PASS")?;
     //get latest email
-    let msg_text = fetch_inbox_top(user, password,5).expect("Something went wrong").unwrap();
+    let msg_text = fetch_inbox_top(user, password,6).expect("Something went wrong").unwrap();
     println!("{}", msg_text);
     Ok(())
 }
